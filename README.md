@@ -29,7 +29,7 @@ https://simple.wikipedia.org/wiki/Mandelbrot_set
     }
     
 ### Result
-[[https://github.com/frodrok/mandelbrot-image-generator/blob/master/result/output-distributed.png|alt=result]]
+![alt text](https://github.com/frodrok/mandelbrot-image-generator/raw/master/result/output-distributed.png "The result")
 
 ### Mandelbrot explanation
 The mandelbrot equation can be seen on wikipedia but what it means for us in this project is that for each point in a grid we can calculate the amount of iterations it take us to reach the number 2 for a complex number. The point is that it's computationally expensive and gives us a reason to make the process parallell.
@@ -61,9 +61,10 @@ return n
    
 ### Running it (tested on linux)
 
+```bash
 bash start-4-servers.sh	
-
 python3 consumer.py
+```
    
     
 
