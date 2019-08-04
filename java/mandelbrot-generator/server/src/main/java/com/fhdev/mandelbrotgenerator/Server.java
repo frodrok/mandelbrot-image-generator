@@ -14,6 +14,9 @@ import org.slf4j.LoggerFactory;
 import com.fhdev.json.MandelbrotRequest;
 import com.fhdev.json.MandelbrotResponse;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
+
 import com.fhdev.mandelbrotgenerator.calculator.MandelbrotCalculator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,7 +29,7 @@ public class Server {
 
     public static void main(String[] args) throws Exception {
 
-	ServerSocket serverSocket;
+	ServerSocket serverSocket = null;
 	Socket clientSocket;
 	String inputLine = null, outputLine = null, jsonData = null;
 	Integer portNumber;
@@ -60,24 +63,55 @@ public class Server {
 		    logger.info(inputLine);
 		}
 
-		logger.info("got the string, continuing");
-		
 		MandelbrotRequest request = mapper.readValue(jsonData, MandelbrotRequest.class);
-		logger.info(request.toString());
-		logger.info(request.startX + "");
-		logger.info(request.startY + "");
-		logger.info(request.endX + "");	     
-		logger.info(request.endY + "");	     
-		
-		logger.info(request.maxIter + "");
 
-		logger.info("starting calculations");
 		MandelbrotResponse response = calculator.calculate(request);
-		logger.info("ending calculations");
 
 		String jsonString = mapper.writeValueAsString(response);
-		logger.info("sending response back" + jsonString.length());
-		out.println(jsonString);
+
+		byte[] asBytes = jsonString.getBytes(StandardCharsets.UTF_8);
+		int messageLength = asBytes.length;
+		
+		logger.info("Sending response of length: " + messageLength + " back");
+
+		// Start by sending a packet containing the length
+		byte[] mLength = ByteBuffer.allocate(4).putInt(messageLength).array();
+		clientSocket.getOutputStream().write(mLength);
+
+		// Send the message in 60k parts
+		int sentBytes = 0;
+		int start = 0;
+		int end = 59999;
+
+		// Start at messageLength and reduce our way down to 0
+		int leftToSend = messageLength;
+		
+		while (leftToSend > 0) {
+
+		    byte[] part = null;
+
+		    if (leftToSend > 59999) {
+			part = new byte[60000];
+		    } else {
+			part = new byte[leftToSend];
+		    }
+
+		    // Copy bytes from our serialized response to our part
+		    for (int i = 0, offset = start; i < part.length; offset++, i++) {
+			part[i] = asBytes[offset];
+		    }
+
+		    // write has no return value
+		    clientSocket.getOutputStream().write(part);
+
+		    start = start + 60000;
+		    end = end + 60000;
+		    sentBytes += (end - start);
+		    leftToSend = leftToSend - part.length;
+		    
+		    //		    logger.info("sent " + sentBytes + " / " + messageLength);
+		    logger.info("lefttosend: " + leftToSend);
+		}
 
 		logger.info("done");
 		
@@ -87,6 +121,8 @@ public class Server {
 	    System.out.println("face exception");
 	    
 	    throw ex;
+	} finally {
+			serverSocket.close();
 	}
 
     }

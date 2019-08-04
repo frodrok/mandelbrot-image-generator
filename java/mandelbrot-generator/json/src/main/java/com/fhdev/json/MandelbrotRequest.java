@@ -74,7 +74,19 @@ public class MandelbrotRequest {
     }
 
     public String toString() {
-	return this.getClass().toString();
+	//	return this.getClass().toString();
+	return "{MandelbrotRequest: startX=" + this.startX +
+	    ", startY=" + this.startY +
+	    ", endX=" + this.endX +
+	    ", endY=" + this.endY +
+	    ", totalX=" + this.totalX +
+	    ", totalY=" + this.totalY +
+	    ", reStart=" + this.reStart +
+	    ", reEnd=" + this.reEnd +
+	    ", imStart=" + this.imStart +
+	    ", imEnd=" + this.imEnd +
+	    ", maxIter=" + this.maxIter + "}";
+	    
     }
 
     
