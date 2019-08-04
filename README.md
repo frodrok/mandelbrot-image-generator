@@ -56,7 +56,21 @@ return n
     * Handle connection and data serialization failures
     * Use a queue or other middle man to handle data passing instead of direct TCP
     * Implement an algorithm to choose hosts based on connectivity and usage instead of depending on which part we're generating
-    * Implement the project in different languages: Java, Scala, Go, Rust and C++
+    * Implement the project in different languages: Java, Scala, Go, Rust, C++ and erlang
+    * Create a front-end to send and receive data with web sockets
+    * Add kubernetes and helm charts for deployment
+    * Add build scripts and static code analysis
+
+### Progress
+- [x] Python
+- [ ] Java
+- [ ] Scala
+- [ ] Go
+- [ ] Rust
+- [ ] C++
+- [ ] Erlang
+- [ ] Front-end
+- [ ] Deployment
     
    
 ### Running it (tested on linux)
