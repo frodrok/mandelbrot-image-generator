@@ -2,19 +2,20 @@
 
 import socket
 import json
+import threading
+import time
 from PIL import Image, ImageDraw
 
 HOST = "127.0.0.1"
 PORT = 1000
 
-#hosts = [ (HOST, PORT), (HOST, PORT+1), (HOST, PORT+2), (HOST, PORT+3) ]
 hosts = [ (HOST, PORT+i) for i in range(0, 4) ]
 
 image_properties = {
-	"width": 640,
-	"height": 480,
+	"width": 1920,
+	"height": 1080,
 	"parts": 2,
-	"max_iter": 160,
+	"max_iter": 255,
 	"re_start": -2,
 	"re_end": 1,
 	"im_start": -1,
@@ -51,7 +52,7 @@ def send_and_receive(data, host):
 
 			data = s.recv(60000)
 
-			print("receiving %s bytes, have %s out of %s" % (len(data), received, expecting))
+#			print("receiving %s bytes, have %s out of %s" % (len(data), received, expecting))
 
 			received += len(data)
 			
@@ -89,7 +90,8 @@ def split_and_generate(parts_amount, width, height, hosts):
 	# same thing for the y-values
 	for i in range(0, parts_amount):
 		for j in range(0, parts_amount):
-				
+
+			def send_to_server(generated_parts):
 				start_x = int(i * one_part_x)
 				start_y = int(j * one_part_y)
 
@@ -124,24 +126,33 @@ def split_and_generate(parts_amount, width, height, hosts):
 
 				parts.append(part_data)
 
+			x = threading.Thread(target=send_to_server, args=(generated_parts,))
+			generated_parts += 1
+			x.start()
+
+	# Wait for all the parts to finish
+	expecting_parts = parts_amount * 2
+	while (len(parts) < expecting_parts):
+		time.sleep(0.25)
+
 	return parts
 
 parts = split_and_generate(image_properties["parts"], image_properties["width"], image_properties["height"], hosts)
 
-for part in enumerate(parts):
+for part in parts:
 
-		offset = part["offset"]
+	offset = part["offset"]
 
-		for x_index, xes in enumerate(part["data"]):
-				for y_index, calculations in enumerate(xes):
+	for x_index, xes in enumerate(part["data"]):
+		for y_index, calculations in enumerate(xes):
 
-						hue = int(255 * calculations / image_properties["max_iter"])
-						saturation = 255
-						value = 255 if calculations < image_properties["max_iter"] else 0
+			hue = int(255 * calculations / image_properties["max_iter"])
+			saturation = 255
+			value = 255 if calculations < image_properties["max_iter"] else 0
 
-						colors = (hue, saturation, value)
+			colors = (hue, saturation, value)
 
-						draw.point([x_index + offset[0], y_index + offset[1]], colors)				
+			draw.point([x_index + offset[0], y_index + offset[1]], colors)				
 
 # Persist the image buffer to disk
 im.convert('RGB').save('output-distributed.png', 'PNG')

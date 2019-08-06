@@ -51,8 +51,6 @@ return n
 
 ### Going forward:
     * Read hosts from a file on disk or database
-    * Read image properties and calculation properties as arguments to the consumer
-    * Read wanted resulting filename as arguments to the consumer
     * Handle connection and data serialization failures
     * Use a queue or other middle man to handle data passing instead of direct TCP
     * Implement an algorithm to choose hosts based on connectivity and usage instead of depending on which part we're generating
@@ -63,7 +61,7 @@ return n
 
 ### Progress
 - [x] Python
-- [ ] Java
+- [x] Java
 - [ ] Scala
 - [ ] Go
 - [ ] Rust
@@ -71,7 +69,12 @@ return n
 - [ ] Erlang
 - [ ] Front-end
 - [ ] Deployment
-    
+
+### Performance
+Generating a 1920x1080 picture with 255 max iterations
+* Python sequential execution: 21.051s
+* Python parallel execution: 9.336s
+* Java: 1.909s    
    
 ### Running it (tested on linux)
 

@@ -36,7 +36,7 @@ public class Server {
 	PrintWriter out;
 	BufferedReader in;
 	Boolean running = true;
-    	
+
 	try {
 
 	    // Get port from arguments
@@ -47,19 +47,20 @@ public class Server {
 	    serverSocket = new ServerSocket(portNumber);
 	    
 	    while (running) {
-
+		
 		clientSocket = serverSocket.accept();
 
 		logger.info("Got connection from " + clientSocket.getRemoteSocketAddress().toString());
+		jsonData = null;
 		
 		out = new PrintWriter(clientSocket.getOutputStream(), true);
 
 		in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-	    
+
+		// Read in.readLine() and assign to jsonData and keep looping
+		// until we get a value
 		while (jsonData == null) {
-		    logger.info("Received " + inputLine);
-		    inputLine = in.readLine();
-		    jsonData = inputLine;
+		    jsonData = in.readLine();
 		    logger.info(inputLine);
 		}
 
@@ -88,6 +89,7 @@ public class Server {
 		
 		while (leftToSend > 0) {
 
+		    // Allocate a byte array of size
 		    byte[] part = null;
 
 		    if (leftToSend > 59999) {
@@ -101,28 +103,24 @@ public class Server {
 			part[i] = asBytes[offset];
 		    }
 
-		    // write has no return value
+		    // write our part to the socket stream
 		    clientSocket.getOutputStream().write(part);
 
 		    start = start + 60000;
-		    end = end + 60000;
-		    sentBytes += (end - start);
+		    //end = end + 60000;
+		    //sentBytes += (end - start);
 		    leftToSend = leftToSend - part.length;
 		    
-		    //		    logger.info("sent " + sentBytes + " / " + messageLength);
-		    logger.info("lefttosend: " + leftToSend);
 		}
 
-		logger.info("done");
-		
 	    }
-
+		
 	} catch (Exception ex) {
-	    System.out.println("face exception");
-	    
-	    throw ex;
-	} finally {
-			serverSocket.close();
+	    ex.printStackTrace();
+      	} finally {
+	    if (serverSocket != null) {
+		serverSocket.close();
+	    }
 	}
 
     }

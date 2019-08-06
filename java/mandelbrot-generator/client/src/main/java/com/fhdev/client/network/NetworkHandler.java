@@ -5,6 +5,8 @@ import java.net.UnknownHostException;
 
 import java.io.IOException;
 
+import java.util.concurrent.Callable;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
 
@@ -22,6 +24,13 @@ public final class NetworkHandler {
     public NetworkHandler(String ipAddress, Integer port) {
 	this.ipAddress = ipAddress;
 	this.port = port;
+    }
+
+    public NetworkHandler(String ipAndPort) {
+	var ip = ipAndPort.split(":")[0];
+	var port = ipAndPort.split(":")[1];
+	this.ipAddress = ip;
+	this.port = Integer.parseInt(port);
     }
 
     // Can do: Implement one for byte[] argument as well
@@ -57,10 +66,11 @@ public final class NetworkHandler {
 
 		    // we have index 0 to 59999, 60000 will be array index out of bounds
 		    byte[] read = new byte[60000];
+
 		    int wellfareBytes = socket.getInputStream().read(read, 0, 60000);
 
 		    for (int index = 0; index < wellfareBytes; index++) {
-			messageBytes[wat + start] = read[wat];
+			messageBytes[index + start] = read[index];
 		    }
 		    
 		    start = start + wellfareBytes;
@@ -74,20 +84,22 @@ public final class NetworkHandler {
 	    } else {
 		System.err.print("We did not receive a good length message");
 	    }
-
 	    
 	} catch (UnknownHostException e) {
 	    System.err.print(e);
 	} catch (IOException e) {
 	    System.err.print(e);
 	} finally {
-	    try {
-		socket.close();
-	    } catch (IOException e) {
-		System.err.print(e);
+	    if (socket != null) {
+		try {
+		    socket.close();
+		} catch (IOException e) {
+		    System.err.print(e);
+		}
 	    }
 	}
 
 	return receivedMessage;
     }
+
 }

@@ -10,6 +10,8 @@
     <version>1.0-SNAPSHOT</version>
   </parent>
 
+  <packaging>jar</packaging>
+
   <groupId>com.fhdev</groupId>
   <artifactId>client</artifactId>
   <version>1.0-SNAPSHOT</version>
@@ -58,6 +60,19 @@
         <groupId>org.ow2.asm</groupId>
         <artifactId>asm</artifactId>
         <version>6.2</version> <!-- Use newer version of ASM -->
+    </dependency>
+
+        <!-- logging dependencies -->
+    <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.25</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.25</version>
     </dependency>
 
     
