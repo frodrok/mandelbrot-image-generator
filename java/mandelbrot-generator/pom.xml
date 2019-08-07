@@ -10,6 +10,7 @@
   
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jacksonversion>2.9.9</jacksonversion>
   </properties>
 
 <modules>
