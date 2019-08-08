@@ -5,8 +5,7 @@ https://simple.wikipedia.org/wiki/Mandelbrot_set
 
 ### The process:
     * Each server listens on a specified port for a JSON messages containing parameters shown below
-    * The consumer uses hard coded values for image properties and calculations properties
-      to split the width and height into parts that it sends off to each server
+    * The consumer uses values from the command line for image- and calculation properties to split the width and height into parts that it sends off to each server
     * The server receives the parameters and returns back a JSON message containing a two-dimensional array of [(x=0)[calculations of y values]], (x=1)[calculations of y values]] representing x and y values
     * The consumer keeps track of which part it received and stores that into a list of parts
     * Finally the consumer join the parts and translate the calculation data for a pixel into a color and draw's it on the canvas and saves to a file
@@ -21,10 +20,10 @@ https://simple.wikipedia.org/wiki/Mandelbrot_set
 		"end_y" - which y pixel to stop generating at, int
 		"total_x" - total width of the image, int
 		"total_y" - total height of the image, int
-		"re_start" - some parameter determining how the picture is generated, int
-		"re_end" - some parameter determining how the picture is generated, int
-		"im_start" - some parameter determining how the picture is generated, int
-		"im_end" - some parameter determining how the picture is generated, int
+		"re_start" - alias for real_start, determines the scale of the picture, int
+		"re_end" - alias for real_end, same as above int
+		"im_start" - alias for imaginary_start, same as above int
+		"im_end" - alias for imaginary_end, same as above, int
 		"max_iter" - a parameter specifying how many iterations we will allow before we exit, int
     }
     
@@ -76,12 +75,4 @@ Generating a 1920x1080 picture with 255 max iterations
 * Python parallel execution: 9.336s
 * Java: 1.909s    
    
-### Running it (tested on linux)
-
-```bash
-bash start-4-servers.sh	
-python3 consumer.py
-```
-   
-    
-
+Each subproject has instructions on how to run it.

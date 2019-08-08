@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+message MandelbrotReq {
+
+    int32 startX = 1;
+    int32 startY = 2;
+
+    int32 endX = 3;
+    int32 endY = 4;
+
+    int32 totalX = 5;
+    int32 totalY = 6;
+
+    int32 maxIterations = 7;
+
+    // Address is a message defined somewhere else.
+    // repeated Address addresses = 3;
+}
