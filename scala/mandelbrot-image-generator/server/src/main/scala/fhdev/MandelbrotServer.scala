@@ -1,11 +1,5 @@
 package fhdev
 
-import akka.io.{ IO, Tcp }
-//import context.system // implicitly used by IO(Tcp)
-import akka.actor.{ Actor, ActorRef, Props, ActorSystem }
-import akka.io.{ IO, Tcp }
-import akka.event.Logging
-import akka.util.ByteString
 import java.net.InetSocketAddress
 
 import com.fhdev.data.MandelbrotRequest
@@ -13,87 +7,118 @@ import com.fhdev.data.MandelbrotResponse
 
 import io.circe._, io.circe.parser._
 import io.circe.generic.auto._, io.circe.syntax._
-// import io.circe._
-// import io.circe.parser._
 
 import spire.implicits._
 import spire.math._
 
+import java.io._
+import java.nio.ByteBuffer
+
+import java.util.Arrays
+
+import java.net.{ ServerSocket, Socket }
 
 import scala.annotation.tailrec
 
-//import Tcp._
-//import context.system
-
-//import com.fhdev.MandelbrotRequest.MandelbrotReq;
-
-
-
 object MandelbrotServer extends App {
 
-  implicit val system = ActorSystem()
-  val manager = IO(Tcp)
+  val port = args(0).toInt
 
-  // Set up our server actor
-  system.actorOf(Props(new Server(1000)), "server")
+  new Server(port).start  
 }
 
-class Server(port: Int) extends Actor {
+class Server(port: Int){
 
-  import Tcp._
-  import context.system
+  def start = {
 
-  val log = Logging(context.system, this)
+    val listeningSocket = new ServerSocket(port)
 
-  IO(Tcp) ! Bind(self, new InetSocketAddress("localhost", port))
+    @tailrec def handlerLoop(running: Boolean): Boolean = {
 
-  def receive = {
-    case b @ Bound(localAddress) =>
-      log.info(s"bound to $localAddress")
-      context.parent ! b
+      if (!running) running
 
-    case CommandFailed(_: Bind) => context.stop(self)
+      // This blocks until someone has connected on $port
+      val connection = listeningSocket.accept
 
-      // When receiving a new connection, create a new
-      // actor and register it as the handler
-    case c @ Connected(remote, local) =>
-      val handler = context.actorOf(Props[MandelbrotHandler])
-      val connection = sender()
-      connection ! Register(handler)
-  }
+      val input = new BufferedReader(new InputStreamReader(connection.getInputStream))
+      val outStream = connection.getOutputStream
 
-}
+      // This blocks until someone has sent $x + '\n' on $port
+      val readLine = input.readLine()
 
-class MandelbrotHandler extends Actor {
+      // When we receive a request, send it to MandelbrotHandler
+      // and get a response back
+      val response = MandelbrotHandler.getMandelbrotResponse(readLine)
+      val length = response.length
+      val responseAsBytes = response.getBytes("UTF-8")
 
-  import Tcp._
+      val lengthAsBytes = ByteBuffer.allocate(4).putInt(length).array()
 
-  val log = Logging(context.system, this)
+      // Calculate how many 60k packets we need from the length / 60000
+      // and the remainder for the last small packet
+      // for example if length = 830000 bytes, 830000 / 60000 = 13
+      // so we need 13 full size packets and then 830000 % 60000 = size of
+      // the last packet (50000)
+      val fullSizePackets: Int = if (length > 60000) (length / 60000) else 1
+      val lastPacketSize: Int = if (fullSizePackets > 1) length % 60000 else 0
 
-  implicit val decodeMandelbrotRequest: Decoder[MandelbrotRequest] = new Decoder[MandelbrotRequest] {
-    final def apply(c: HCursor): Decoder.Result[MandelbrotRequest] =
-      for {
-        startX <- c.downField("start_x").as[Int]
-        startY <- c.downField("start_y").as[Int]
-        endX <- c.downField("end_x").as[Int]
-        endY <- c.downField("end_y").as[Int]
-        totalX <- c.downField("total_x").as[Int]
-        totalY <- c.downField("total_y").as[Int]
-        maxIter <- c.downField("max_iter").as[Int]
-      } yield {
-        MandelbrotRequest(startX,
-          startY,
-          endX,
-          endY,
-          totalX,
-          totalY,
-          maxIter)
+      // Send 4 bytes containing the total length of the message
+      // and then all of the bytes split into packets of 60k bytes
+
+      // Copy bytes into 60k packets with 1 smaller packet at the end
+      def generatePackets(fullSizePackets: Int, lastPacketSize: Int, bytes: Array[Byte]): List[Array[Byte]] = {
+
+        val populatedPackets: List[Array[Byte]] = List.range(0, fullSizePackets) map (x => {
+          Arrays.copyOfRange(bytes, x * 60000, (x+1) * 60000)
+        })
+
+        val end = (fullSizePackets * 60000)
+        val lastPacket: Array[Byte] = Arrays.copyOfRange(bytes, end, end+lastPacketSize)
+
+        populatedPackets ::: List(lastPacket)
       }
+
+      val generatedPackets = generatePackets(fullSizePackets, lastPacketSize, responseAsBytes)
+
+      // Join with length packet as head
+      val bytesToWrite = List(lengthAsBytes) ::: generatedPackets
+
+      // Hit send button
+      bytesToWrite foreach(outStream.write(_))
+
+      // Recurse and accept a new connection
+      handlerLoop(true)
+    }
+
+    handlerLoop(true)
+
   }
 
-  /* Receive a mandelbrotRequest and fill a mandelbrotResponse
-   with the amount of calculations each pixel took */
-  // Move to a separate class
+}
+
+object MandelbrotHandler {
+
+  def getMandelbrotResponse(line: String): String = {
+
+    // Parse line into a MandelbrotRequest, do calculations and return
+    // a MandelbrotResponse as a string
+
+    val parsed = parse(line)
+
+    val extracted = parsed.fold(_ => Json.Null, x => x)
+
+    val instantiated = extracted.as[MandelbrotRequest]
+
+    val stringResponse = instantiated match {
+        case Right(mbR) => calculate(mbR).asJson.noSpaces
+        case Left(ex) => "could not parse json"
+    }
+
+    return stringResponse
+  }
+
+  // Receive a mandelbrotRequest and fill a mandelbrotResponse
+  // with the amount of calculations each pixel took
   def calculate(mbRequest: MandelbrotRequest): MandelbrotResponse = {
 
     def mandelbrot(c: Complex[Double], maxIterations: Int): Int = {
@@ -107,56 +132,30 @@ class MandelbrotHandler extends Actor {
     }
 
     def getCalculations(x: Int, y: Int, totalX: Int, totalY: Int, maxIterations: Int): Int = {
-      val h = 4.0 / totalY
-      val w = 4.0 / totalX
+      val h = 2.0 / totalY
+      val w = 2.0 / totalX
 
       val x0 = -2
       val y0 = -1
 
       val c = Complex(x * w + x0, y * h + y0)
+
       mandelbrot(c, maxIterations)
     }
 
     def yIndexAsArray(xValue: Int, startY: Int, endY: Int, totalX: Int, totalY: Int, maxIterations: Int): Array[Int] = {
-      (startY to endY).map(yValue => {
+      (startY until endY).map(yValue => {
         getCalculations(xValue, yValue, totalX, totalY, maxIterations)
       }).toArray
     }
 
-    val xAndYValues = (mbRequest.startX to mbRequest.endY).map(x => {
-      yIndexAsArray(x, mbRequest.startY, mbRequest.endY, mbRequest.totalX, mbRequest.totalY, mbRequest.maxIterations)
+    // Generate a two dimensional array with X and Y values
+    // with variables from the request
+    val xAndYValues = (mbRequest.startX until mbRequest.endX).map(x => {
+       yIndexAsArray(x, mbRequest.startY, mbRequest.endY, mbRequest.totalX, mbRequest.totalY, mbRequest.maxIterations)
     }).toArray
 
     MandelbrotResponse(xAndYValues)
   }
 
-  def receive = {
-
-    case Received(data) => {
-
-      val requestJson = data.utf8String
-
-      // Parse, get an either
-      val parsed: Either[ParsingFailure, Json] = parse(requestJson)
-
-      val extracted = parsed.fold(_ => Json.Null, x => x) // x => x = io.circe.Json
-
-      // should be an either[Decodingfailure, MandelbrotRequest]
-      val instantiated = extracted.as[MandelbrotRequest]
-
-      // Here we extract the value and if it's good we send it to calculate()
-      // which gives us a response back
-      val mandelbrotResponse: MandelbrotResponse = instantiated match {
-        case Right(mbR) => calculate(mbR)
-        case Left(ex) => new MandelbrotResponse(Array())
-      }
-
-      val backToString: String = mandelbrotResponse.asJson.noSpaces
-
-      sender () ! Write(ByteString(backToString))
-
-    }
-    case PeerClosed => context.stop(self)
-
-  }
 }
