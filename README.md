@@ -61,7 +61,7 @@ return n
 ### Progress
 - [x] Python
 - [x] Java
-- [ ] Scala
+- [x] Scala
 - [ ] Go
 - [ ] Rust
 - [ ] C++
