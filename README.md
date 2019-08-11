@@ -74,5 +74,7 @@ Generating a 1920x1080 picture with 255 max iterations
 * Python sequential execution: 21.051s
 * Python parallel execution: 9.336s
 * Java: 1.909s    
+* Scala sequential execution: 3.716s
+* Scala parallell execution: Between 3.085s and 4.161s
    
 Each subproject has instructions on how to run it.
