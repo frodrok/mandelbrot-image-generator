@@ -17,8 +17,10 @@ using json = nlohmann::json;
 using namespace std;
 
 class Server {
+  
 private:
   int port;
+  
 public:
 
   Server(int port1) {
@@ -27,15 +29,8 @@ public:
   
   void start() {
     
-    cout << "Starting server on " << port << "\n";
+    cout << "Starting server on port " << port << "\n";
 
-    // MandelbrotRequest *mbRequest = new MandelbrotRequest(0,
-    // 							 0,
-    // 							 640,
-    // 							 480,
-    // 							 640,
-    // 							 480,
-    // 							 255);
     int server_fd, new_socket, valread;
     int opt = 1;
     struct sockaddr_in address;
@@ -43,6 +38,7 @@ public:
     char buffer[1024] = {0};
     char *hello = "Hello from server";
 
+    // Set up a socket and start a loop that accepts connections
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
       perror("socket creation failed");
       exit(EXIT_FAILURE);
@@ -73,6 +69,9 @@ public:
     
     while (running) {
 
+      // Accept new connections, serialize the received
+      // string into a MandelbrotRequest and return back
+      // a MandelbrotResponse
       if ((new_socket = accept(server_fd, (struct sockaddr*)&address,
 			       (socklen_t*)&addrlen)) < 0) {
 	perror("accept");
@@ -84,66 +83,84 @@ public:
       cout << valread << " bytes read" << "\n";
       cout << " read: " << buffer << '\n';
 
-      auto j3 = json::parse(buffer);
-      // cout << "hey hey: " << j3["end_x"] << '\n';
+      MandelbrotRequest* mbRequest;
 
-      auto mbRequest = new MandelbrotRequest(j3["start_x"],
-					    j3["start_y"],
-					    j3["end_x"],
-					    j3["end_y"],
-					    j3["total_x"],
-					    j3["total_y"],
-					    j3["max_iter"]);
+      try {
 
-      // how to print type
+	cout << buffer << "\n";
+
+	auto j3 = json::parse(buffer);
+
+	mbRequest = new MandelbrotRequest(j3["start_x"],
+					       j3["start_y"],
+					       j3["end_x"],
+					       j3["end_y"],
+					       j3["total_x"],
+					       j3["total_y"],
+					       j3["max_iter"]);
+
+      } catch (const std::exception& e) {
+	cout << "got exception: " << e.what() << "\n";
+      }
+
+      // How to print type of variable
       cout << typeid(mbRequest).name() << '\n';
 
       auto mbResponse = MandelbrotCalculator::calculate(mbRequest);
 
-      auto ww = mbResponse->toJson();
+      auto responseAsString = mbResponse->toJson();
 
-      cout << "response len: " << ww.length() << '\n';
-      //      cout << "response: " << ww << '\n';
+      cout << "response len: " << responseAsString.length() << '\n';
 
-      cout << "toJson type: " << typeid(ww).name() << '\n';
+      cout << "toJson type: " << typeid(responseAsString).name() << '\n';
 
-      char cstr[ww.length() + 1];
-      ww.copy(cstr, ww.size() + 1);
-      cstr[ww.size()] = '\0';
+      char cstr[responseAsString.length() + 1];
+      responseAsString.copy(cstr, responseAsString.size() + 1);
+      cstr[responseAsString.size()] = '\0';
 
-      int messageLength = ww.length();
+      int messageLength = responseAsString.length();
 
-      vector<unsigned char> arrayOfByte(4);
-      for (int i = 0; i < 4; i++)
-	arrayOfByte[3 - i] = (messageLength >> (i * 8));
+      // casting an int to a byte[] (unsigned char[])
+      //      arrayOfByte[3] = (int >> (0))
+      //      arrayOfByte[2] = (int >> (8))
+      //      arrayOfByte[1] = (int >> (16))
+      //      arrayOfByte[0] = (int >> (24))      
 
 
-      void *data = static_cast<void*>(& arrayOfByte);
+      unsigned char bytes[4] = {0};
+
+      for (int i = 0; i < 4; i++) {
+	bytes[3 - i] = (messageLength >> (i * 8));
+      } 
+
+      cout << "Sending " << sizeof(bytes) << " bytes\n";
       
-      send(new_socket, data, 4, 0);
+      send(new_socket, bytes, sizeof(bytes), 0);
 
+      // Loop and send packets of 60k to the open socket until
+      // everything is sent
       int sentBytes = 0;
-      
+      int start = 0;
       while (sentBytes < messageLength) {
 
-	// Copy 60k chars from ww to temp array and send it
+	// Copy 60k chars from responseAsString to temp array and send it
 	char cstr[60000];
-	ww.copy(cstr, 60000);
+	cout << "Copying responseAsString to cstr from " << start << "\n";
+	responseAsString.copy(cstr, 60000, start);
+	cout << "Sending " << strlen(cstr) << " bytes\n";
 	send(new_socket, cstr, strlen(cstr), 0);
-	//	send(new_socket, cstr, strlen(cstr), 0);
-	//	send(new_socket, cstr, strlen(cstr), 0);
-	sentBytes += 60000;
+	sentBytes += strlen(cstr);
+	start += 60000;
       }
       
 
       // send(to, what, len, 0?)
 
-      cout << "Sent message back\n";
-      
+      cout << "Sent message back\n";      
     }
-      
   }
 };
+  
 
 int len(char* argv[]) {
   return (sizeof(argv) / sizeof(*argv));
