@@ -62,7 +62,7 @@ return n
 - [x] Python
 - [x] Java
 - [x] Scala
-- [ ] Go
+- [X] Go
 - [ ] Rust
 - [ ] C++
 - [ ] Erlang
@@ -76,5 +76,6 @@ Generating a 1920x1080 picture with 255 max iterations
 * Java: 1.909s    
 * Scala sequential execution: 3.716s
 * Scala parallell execution: Between 3.085s and 4.161s
+* Golang sequential execution: 0.673s
    
 Each subproject has instructions on how to run it.
