@@ -77,5 +77,6 @@ Generating a 1920x1080 picture with 255 max iterations
 * Scala sequential execution: 3.716s
 * Scala parallell execution: Between 3.085s and 4.161s
 * Golang sequential execution: 0.673s
+* Golang parallel execution: 1.222s (unsure why, maybe there's some extra polling in regards to getting results from channels)
    
 Each subproject has instructions on how to run it.
