@@ -2,31 +2,10 @@ use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::io::BufReader;
 use byteorder::{ByteOrder, LittleEndian};
+use std::str::from_utf8;
 
 #[macro_use]
 extern crate json;
-
-fn handle_client(stream: TcpStream) -> &'static str {
-    // ...
-    println!("handle_client");
-
-    // let mut reader = BufReader::new(stream);
-
-    // let mut line = String::new();
-    // let len = reader.read_line(&mut line);
-    
-    // println!("First line is {} bytes long", len);
-
-    // match len {
-    //     Ok(data) => println!("wutfacé {:?}", data),
-    //     Err(e) => println!("errrror {:?}", e)
-    // }
-
-    
-
-    return "heyhey";
-}
-
 
 fn perform_calculations(mb_request: json::JsonValue) -> std::vec::Vec<std::vec::Vec<i32>> {
 
@@ -38,17 +17,7 @@ fn perform_calculations(mb_request: json::JsonValue) -> std::vec::Vec<std::vec::
     let end_x = &mb_request["end_x"].as_number().unwrap().into();
     let end_y = &mb_request["end_y"].as_number().unwrap().into();
 
-    // println!("{}", start_x.is_number());
-
-    //let start_x_as_number = &mb_request["start_x"].as_number().unwrap();
-
     println!("{}", start_x);
-
-    /* match start_x_as_number {
-        Some(number) => println!("{}", number),
-        None => println!("none")
-    } */
-    // println!("{}", start_x.as_number());
 
     /* This is what I would like to do,
     grab a value from json and iterate from one to the other
@@ -64,10 +33,6 @@ fn perform_calculations(mb_request: json::JsonValue) -> std::vec::Vec<std::vec::
     let y_max: i32 = *end_y;
 
     let mut x_array: std::vec::Vec<std::vec::Vec<i32>> = Vec::with_capacity(x_max as usize);
-    //let mut y_array: std::vec::Vec<i32> = Vec::with_capacity(y_max as usize);
-
-    //let y_array: [i32; y_max];
-    //let x_array: [i32; x_max];
 
     while x_count < x_max {
         
@@ -95,57 +60,80 @@ fn perform_calculations(mb_request: json::JsonValue) -> std::vec::Vec<std::vec::
 }
 
 fn write_string(mut stream: TcpStream, str: String) -> Result<bool, &'static str> {
+
+    println!("writing {} to tcp stream", str);
+
+    let mut len = [0u8; 4];
+    let bytes = str.as_bytes();
+    LittleEndian::write_u32(&mut len, str.len() as u32);
+
+    println!("writing length");
+    stream.write(&len);
+    //println!("writing bytes");
+    stream.write(&bytes);
+    
     return Err("no faces done");
 }
 
-fn handle_connection(mut stream: TcpStream) {
-    let mut buffer = [0; 512];
+fn filter_read_string(str: &String) -> String {
 
-    stream.read(&mut buffer).unwrap();
+    let mut count: i32 = 0;
+    let mut result = String::new();
 
-    println!("request: {}", String::from_utf8_lossy(&buffer[..]));
+    for charrer in str.chars() {
+        println!("{}: {} charrer: {}", count, charrer, charrer.is_whitespace());
 
-//    let mb_request = json::parse(String::from_utf8_lossy(&buffer[..]));
-
-    let parsed = json::parse(r#"
-{"start_x": 0,
-"start_y": 0,
-"end_x": 640,
-"end_y": 480,
-"total_x": 640,
-"total_y": 480,
-"max_iterations": 255
-}
-"#);
-
-    match parsed {
-        Ok(object) => {
-            println!("{}", object.to_string());
-            let calculation_data: std::vec::Vec<std::vec::Vec<i32>> = perform_calculations(object);
-            /* Construct a {
-            "data" => ·calculation data
-            } json object and send it back as a string */
-            let instantiated = object!{
-    "code" => 200,
-    "success" => true,
-    "payload" => object!{
-        "features" => array![
-            "awesome",
-            "easyAPI",
-            "lowLearningCurve"
-        ]
+        count = count + 1;
     }
-            };
 
-            let wut: String = instantiated.dump();
+    result.push('h');
+        
+    return result;
+}
 
-            /* Write string to tcp stream */
-            let res = write_string(stream, wut); 
+fn as_u32_le(array: &[u8;4]) -> u32 {
+    ((array[0] as u32) << 0) +
+    ((array[1] as u32) << 8) +
+    ((array[2] as u32) << 16) +
+    ((array[3] as u32) << 24)
+}
+
+fn handle_connection(mut stream: TcpStream) {
+    
+    let mut len_buf = [0 as u8; 4];
+
+    match stream.read_exact(&mut len_buf) {
+        Ok(_) => {
+            let length = as_u32_le(&len_buf);
+            /* let mut temp_data = vec![0u8; length as usize];
+            stream.read_exact(&mut temp_data).unwrap(); */
+
+            let mut temp_data = vec![0u8; length as usize];
+            stream.read_exact(&mut temp_data).unwrap();
+
+            let text: String = from_utf8(&temp_data).unwrap().to_string();
+            println!("received {}", text);
+
+            let mb_request = json::parse(&text);
+            
+            match mb_request {
+                Ok(value) => {
+                    println!("{} value", value);
+                    let calculation_data = perform_calculations(value);
+                    
+                    let instantiated = object!{
+                        "data" => 1
+                    };
+                    
+                    write_string(stream, instantiated.dump());
+                }
+                Err(e) => println!("could not parse json")
+            }
+            
         },
-        Err(e) => println!("Could not parse json {}", e)
+        Err(e) => println!("Could not read length bytes")
     }
     
-    //println!("{}", parsed.to_string());
 }
 
 fn main() {
@@ -161,10 +149,4 @@ fn main() {
         handle_connection(stream);
             
     }
-    
-    // accept connections and process them serially
-   
-    
-
-    //Ok(());
 }
